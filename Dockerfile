@@ -1,8 +1,8 @@
 FROM rust as build
-WORKDIR /usr/src/api-service
+WORKDIR /usr/src/epic-authentik
 COPY . .
 
-RUN cargo install --path .
+RUN cargo build --release
 FROM alpine:latest
-COPY --from=build /usr/local/cargo/bin/api-service /usr/local/bin/api-service
-CMD ["api-service"]
+COPY --from=build /usr/src/epic-authentik/target/release/epic-authentik .
+CMD ["epic-authentik"]
