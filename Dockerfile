@@ -1,8 +1,8 @@
-FROM rust as build
-WORKDIR /usr/src/epic-authentik
+FROM rust:1.67.0-alpine as builder
+WORKDIR /usr/src/app
 COPY . .
+RUN apk add --no-cache musl-dev && cargo build --release
 
-RUN cargo build --release
-FROM alpine:latest
-COPY --from=build /usr/src/epic-authentik/target/release/epic-authentik .
-CMD ["epic-authentik"]
+FROM scratch
+COPY --from=builder /usr/src/app/target/release/epic-authentik /
+ENTRYPOINT ["/epic-authentik"]
