@@ -2,15 +2,14 @@ use std::collections::HashMap;
 use std::env::var;
 use std::io::Result;
 
-use actix_web::http::header::{HeaderName, HeaderValue};
 use actix_web::web::Form;
-use actix_web::{post, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_web::{post, App, HttpResponse, HttpServer, Responder};
 use lazy_static::lazy_static;
-use reqwest::header::HeaderMap as ReqwestHeaderMap;
+use log::info;
 use reqwest::Client;
 
 #[post("oauth/token")]
-async fn post(req_body: Form<HashMap<String, String>>, request: HttpRequest) -> impl Responder {
+async fn token(req_body: Form<HashMap<String, String>>) -> impl Responder {
     lazy_static! {
         static ref CLIENT: Client = Client::new();
         #[derive(Debug)]
@@ -24,23 +23,15 @@ async fn post(req_body: Form<HashMap<String, String>>, request: HttpRequest) -> 
     let mut modified_data = req_body.clone();
     modified_data.insert("deployment_id".to_string(), DEPLOYMENT_ID.to_string());
 
-    let mut headers = ReqwestHeaderMap::new();
-    for (name, value) in request.headers().iter() {
-        headers.insert(
-            HeaderName::from_bytes(name.as_str().as_bytes()).unwrap(),
-            HeaderValue::from_str(value.to_str().unwrap()).unwrap(),
-        );
-    }
-
     let response = CLIENT
         .post("https://api.epicgames.dev/epic/oauth/v2/token")
         .basic_auth(CLIENT_ID.to_string(), Some(CLIENT_SECRET.to_string()))
-        .headers(headers)
         .form(&modified_data)
         .send()
         .await
         .unwrap();
     let status_code = response.status();
+    info!("Got Epic response code: {}", status_code);
     let bytes = response.bytes().await.unwrap();
 
     HttpResponse::build(status_code).body(bytes)
@@ -48,7 +39,7 @@ async fn post(req_body: Form<HashMap<String, String>>, request: HttpRequest) -> 
 
 #[actix_web::main]
 async fn main() -> Result<()> {
-    HttpServer::new(|| App::new().service(post))
+    HttpServer::new(|| App::new().service(token))
         .bind(("0.0.0.0", 8080))?
         .run()
         .await
